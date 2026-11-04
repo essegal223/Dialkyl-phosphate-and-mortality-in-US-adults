@@ -14,7 +14,7 @@
 #DETDP=URXOP6
 
 
-setwd("~/Library/Mobile Documents/com~apple~CloudDocs/Final Analysis Data")
+
 
 library(haven)
 library(tidyverse)
