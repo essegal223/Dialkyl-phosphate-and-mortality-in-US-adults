@@ -1,0 +1,1430 @@
+---
+title: "Associations stratified by cycles 1999-2008 and 2011-2018"
+author: "Emily"
+date: "2026-10-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+data<-data %>% 
+  mutate(
+    weight=case_when(
+      SDDSRVYR=="1"|SDDSRVYR=="2"~(2/5)*WTSPP4YR,
+      SDDSRVYR=="3"|SDDSRVYR=="4"|SDDSRVYR=="5"~(1/5)*WTSC2YR,
+      SDDSRVYR=="7"~(1/3)*WTSC2YR,
+      SDDSRVYR=="9"|SDDSRVYR=="10"~(1/3)*WTSB2YR
+    )
+  
+)
+dim(data)
+
+#death due to CVD vs all other people; create CVD_death variable
+data  <- data %>%
+  mutate(CVD_death = case_when(
+    ucod_leading==1~1,
+    TRUE ~ 0
+  ))
+
+#death due to cancer vs all other people; create cancer_death variable
+data  <- data %>%
+  mutate(cancer_death = case_when(
+    ucod_leading==2~1,
+    TRUE ~ 0
+  ))
+
+#Drop those with weight=NA
+data_1999_2008=data %>% filter(!is.na(weight)&(SDDSRVYR %in% c(1,2,3,4,5)))
+dim(data_1999_2008)
+data_2011_2018=data %>% filter(!is.na(weight)&(SDDSRVYR %in% c(7,9,10))) 
+dim(data_2011_2018)
+
+
+```
+
+```{r create survey object for 1999_2008}
+
+library(survey)
+
+analysis_1999_2008 <- svydesign(data=data_1999_2008, id=~SDMVPSU, strata=~SDMVSTRA, weights=~weight, nest=TRUE)
+#i can add this as an indicator variable to avoid subsetting for each criteria: inAnalysis= (RIDAGEYR >= 18 & eligstat == 1 & permth_exm!=0 & !is.na(URXUCR)&weight!=0)
+#weights have been calculated and applied, now we can subset the survey data
+
+table(analysis_1999_2008$variables$mortstat, useNA="always")
+dim(analysis_1999_2008)
+
+#drop those not eligible for linkage
+mort_eligDesign<-subset(analysis_1999_2008, eligstat == 1) #this automatically 
+#removes younger than 18 because they are not eligible
+dim(mort_eligDesign)
+#no missing mortality status
+table(mort_eligDesign$variables$mortstat, useNA="always")
+subset.elig.18 <- subset(mort_eligDesign, RIDAGEYR>= 18)
+dim(subset.elig.18) #13881
+
+#drop those with missing follow up
+#6 people have no follow up time from exam, we can exclude them here# (note: current written table1 includes them)
+sum(subset.elig.18$variables$permth_exm==0)
+subset.elig.18.followed=subset(subset.elig.18, permth_exm!=0)
+dim(subset.elig.18.followed) #13875
+
+#drop those with zero weight
+subset.elig.18.followed.nonzeroweight=subset(subset.elig.18.followed, weight!=0)
+dim(subset.elig.18.followed.nonzeroweight) #13125
+
+#creatinine missingness
+sum(is.na(subset.elig.18.followed.nonzeroweight$variables$URXUCR)) / nrow(subset.elig.18.followed.nonzeroweight) * 100 #about 1% of people
+sum(is.na(subset.elig.18.followed.nonzeroweight$variables$URXUCR)) #159 people
+
+subset.elig.18.followed.nonzeroweight$variables %>%
+  group_by(SDDSRVYR) %>%
+  summarise(
+    na_count = sum(is.na(URXUCR)),
+    total_count = n(),
+    percent_missing = (na_count / total_count) * 100
+  )
+#drop those with missing creatinine
+subset.elig.18.followed.nonzeroweight.creatinine_1999_2008=subset(subset.elig.18.followed.nonzeroweight, !is.na(URXUCR))
+dim(subset.elig.18.followed.nonzeroweight.creatinine_1999_2008)
+```
+
+
+```{r create survey object for 2011-2018}
+
+library(survey)
+
+analysis_2011_2018 <- svydesign(data=data_2011_2018, id=~SDMVPSU, strata=~SDMVSTRA, weights=~weight, nest=TRUE)
+#i can add this as an indicator variable to avoid subsetting for each criteria: inAnalysis= (RIDAGEYR >= 18 & eligstat == 1 & permth_exm!=0 & !is.na(URXUCR)&weight!=0)
+#weights have been calculated and applied, now we can subset the survey data
+
+table(analysis_2011_2018$variables$mortstat, useNA="always")
+dim(analysis_2011_2018)
+
+#drop those not eligible for linkage
+mort_eligDesign<-subset(analysis_2011_2018, eligstat == 1) #this automatically 
+#removes younger than 18 because they are not eligible
+dim(mort_eligDesign)
+#no missing mortality status
+table(mort_eligDesign$variables$mortstat, useNA="always")
+subset.elig.18 <- subset(mort_eligDesign, RIDAGEYR>= 18)
+dim(subset.elig.18) #13881
+
+#drop those with missing follow up
+#6 people have no follow up time from exam, we can exclude them here# (note: current written table1 includes them)
+sum(subset.elig.18$variables$permth_exm==0)
+subset.elig.18.followed=subset(subset.elig.18, permth_exm!=0)
+dim(subset.elig.18.followed) #13875
+
+#drop those with zero weight
+subset.elig.18.followed.nonzeroweight=subset(subset.elig.18.followed, weight!=0)
+dim(subset.elig.18.followed.nonzeroweight) #13125
+
+#creatinine missingness
+sum(is.na(subset.elig.18.followed.nonzeroweight$variables$URXUCR)) / nrow(subset.elig.18.followed.nonzeroweight) * 100 #about 1% of people
+sum(is.na(subset.elig.18.followed.nonzeroweight$variables$URXUCR)) #159 people
+
+subset.elig.18.followed.nonzeroweight$variables %>%
+  group_by(SDDSRVYR) %>%
+  summarise(
+    na_count = sum(is.na(URXUCR)),
+    total_count = n(),
+    percent_missing = (na_count / total_count) * 100
+  )
+#drop those with missing creatinine
+subset.elig.18.followed.nonzeroweight.creatinine_2011_2018=subset(subset.elig.18.followed.nonzeroweight, !is.na(URXUCR))
+dim(subset.elig.18.followed.nonzeroweight.creatinine_2011_2018)
+```
+
+```{r URXOP1 create exposure variable for 1999-2008 survey object}
+#drop 
+analysis_URXOP1_crt<- subset(subset.elig.18.followed.nonzeroweight.creatinine_1999_2008, !is.na(URXOP1))
+dim(analysis_URXOP1_crt) #DAP 1: 12798
+
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+
+analysis_URXOP1_crt$variables=analysis_URXOP1_crt$variables %>% 
+  mutate(logcreatinine=log(URXUCR))
+
+#check percent missing on bmicat: about 1%, has missing category
+summary(subset.elig.18.followed.nonzeroweight.creatinine$variables$bmicat)
+
+# Fit the regression model and store predicted values
+analysis_URXOP1_crt$variables=analysis_URXOP1_crt$variables %>% 
+  mutate(logpredicted = predict(lm(logcreatinine ~ RIDAGEYR+sex+race+bmicat+SDDSRVYR, data=analysis_URXOP1_crt$variables)))
+View(analysis_URXOP1_crt$variables %>% select(logcreatinine, logpredicted))
+
+
+#create variables to get creatinine adjusted
+analysis_URXOP1_crt$variables=analysis_URXOP1_crt$variables %>% 
+  mutate(pC=exp(logpredicted),
+         Cratio=URXUCR/pC,
+         URXOP1_crt=URXOP1/Cratio)
+
+# View the updated dataset
+View(analysis_URXOP1_crt$variables %>% select(SEQN, logcreatinine, logpredicted, pC, URXUCR, Cratio, URXOP1, URXOP1_crt))
+
+head(analysis_URXOP1_crt$variables %>% select(SEQN, URXOP1_crt))
+max(analysis_URXOP1_crt$variables$URXOP1_crt)
+# analysis_URXOP1_crt$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP1_crt = max(URXOP1_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP1_crt$variables <- analysis_URXOP1_crt$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP1_crt,
+        breaks = quantile(URXOP1_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP1_crt$variables$quartile)
+
+quartile_check <- analysis_URXOP1_crt$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP1_crt = min(URXOP1_crt, na.rm = TRUE),
+    max_URXOP1_crt = max(URXOP1_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile) %>%   # Sort for easier comparison 
+ungroup()
+
+quartile_check #should be 25% per cycle and quartile level, may need to use this: detach("package:plyr", unload = TRUE) to allow for summarize and coun functions 
+
+#variables on other files use analysis_URXOP1_crt.imputed.cont, thus we create this dataset so we don't have to change everything
+analysis_URXOP1_crt.imputed.cont_1999_2008<- analysis_URXOP1_crt
+analysis_URXOP1_crt.imputed.cont_1999_2008$variables <- analysis_URXOP1_crt.imputed.cont_1999_2008$variables %>%
+  dplyr::select(-URXOP1)  # Drop the URXOP1 column to ensure no mix up in analysis
+dim(analysis_URXOP1_crt.imputed.cont_1999_2008) 
+#DAP1 12798 by 911
+#DAP2 12801 by 911, 
+#DAP3 12817 by 911, 
+#DAP4 12755 by 911,
+#DAP5 12802 by 911,
+#DAP6 12690 by 911
+
+```
+
+```{r URXOP3 create exposure variable for 1999-2008 survey object}
+#drop 
+analysis_URXOP3_crt<- subset(subset.elig.18.followed.nonzeroweight.creatinine_1999_2008, !is.na(URXOP3))
+dim(analysis_URXOP3_crt) #DAP 1: 12798
+
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+
+analysis_URXOP3_crt$variables=analysis_URXOP3_crt$variables %>% 
+  mutate(logcreatinine=log(URXUCR))
+
+#check percent missing on bmicat: about 1%, has missing category
+summary(subset.elig.18.followed.nonzeroweight.creatinine$variables$bmicat)
+
+# Fit the regression model and store predicted values
+analysis_URXOP3_crt$variables=analysis_URXOP3_crt$variables %>% 
+  mutate(logpredicted = predict(lm(logcreatinine ~ RIDAGEYR+sex+race+bmicat+SDDSRVYR, data=analysis_URXOP3_crt$variables)))
+View(analysis_URXOP3_crt$variables %>% select(logcreatinine, logpredicted))
+
+
+#create variables to get creatinine adjusted
+analysis_URXOP3_crt$variables=analysis_URXOP3_crt$variables %>% 
+  mutate(pC=exp(logpredicted),
+         Cratio=URXUCR/pC,
+         URXOP3_crt=URXOP3/Cratio)
+
+# View the updated dataset
+View(analysis_URXOP3_crt$variables %>% select(SEQN, logcreatinine, logpredicted, pC, URXUCR, Cratio, URXOP3, URXOP3_crt))
+
+head(analysis_URXOP3_crt$variables %>% select(SEQN, URXOP3_crt))
+max(analysis_URXOP3_crt$variables$URXOP3_crt)
+# analysis_URXOP3_crt$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP3_crt = max(URXOP3_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP3_crt$variables <- analysis_URXOP3_crt$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP3_crt,
+        breaks = quantile(URXOP3_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP3_crt$variables$quartile)
+
+quartile_check <- analysis_URXOP3_crt$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP3_crt = min(URXOP3_crt, na.rm = TRUE),
+    max_URXOP3_crt = max(URXOP3_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile) %>%   # Sort for easier comparison 
+ungroup()
+
+quartile_check #should be 25% per cycle and quartile level, may need to use this: detach("package:plyr", unload = TRUE) to allow for summarize and coun functions 
+
+#variables on other files use analysis_URXOP3_crt.imputed.cont, thus we create this dataset so we don't have to change everything
+analysis_URXOP3_crt.imputed.cont_1999_2008<- analysis_URXOP3_crt
+analysis_URXOP3_crt.imputed.cont_1999_2008$variables <- analysis_URXOP3_crt.imputed.cont_1999_2008$variables %>%
+  dplyr::select(-URXOP3)  # Drop the URXOP3 column to ensure no mix up in analysis
+dim(analysis_URXOP3_crt.imputed.cont_1999_2008) 
+#DAP1 12798 by 911
+#DAP2 12801 by 911, 
+#DAP3 12817 by 911, 
+#DAP4 12755 by 911,
+#DAP5 12802 by 911,
+#DAP6 12690 by 911
+
+```
+
+
+```{r create exposure variable for 1999-2008 survey object}
+#drop 
+analysis_URXOP4_crt<- subset(subset.elig.18.followed.nonzeroweight.creatinine_1999_2008, !is.na(URXOP4))
+dim(analysis_URXOP4_crt) #DAP 1: 12798
+
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+
+analysis_URXOP4_crt$variables=analysis_URXOP4_crt$variables %>% 
+  mutate(logcreatinine=log(URXUCR))
+
+#check percent missing on bmicat: about 1%, has missing category
+summary(subset.elig.18.followed.nonzeroweight.creatinine$variables$bmicat)
+
+# Fit the regression model and store predicted values
+analysis_URXOP4_crt$variables=analysis_URXOP4_crt$variables %>% 
+  mutate(logpredicted = predict(lm(logcreatinine ~ RIDAGEYR+sex+race+bmicat+SDDSRVYR, data=analysis_URXOP4_crt$variables)))
+View(analysis_URXOP4_crt$variables %>% select(logcreatinine, logpredicted))
+
+
+#create variables to get creatinine adjusted
+analysis_URXOP4_crt$variables=analysis_URXOP4_crt$variables %>% 
+  mutate(pC=exp(logpredicted),
+         Cratio=URXUCR/pC,
+         URXOP4_crt=URXOP4/Cratio)
+
+# View the updated dataset
+View(analysis_URXOP4_crt$variables %>% select(SEQN, logcreatinine, logpredicted, pC, URXUCR, Cratio, URXOP4, URXOP4_crt))
+
+head(analysis_URXOP4_crt$variables %>% select(SEQN, URXOP4_crt))
+max(analysis_URXOP4_crt$variables$URXOP4_crt)
+# analysis_URXOP4_crt$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP4_crt = max(URXOP4_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP4_crt$variables <- analysis_URXOP4_crt$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP4_crt,
+        breaks = quantile(URXOP4_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP4_crt$variables$quartile)
+
+quartile_check <- analysis_URXOP4_crt$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP4_crt = min(URXOP4_crt, na.rm = TRUE),
+    max_URXOP4_crt = max(URXOP4_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile) %>%   # Sort for easier comparison 
+ungroup()
+
+quartile_check #should be 25% per cycle and quartile level, may need to use this: detach("package:plyr", unload = TRUE) to allow for summarize and coun functions 
+
+#variables on other files use analysis_URXOP4_crt.imputed.cont, thus we create this dataset so we don't have to change everything
+analysis_URXOP4_crt.imputed.cont_1999_2008<- analysis_URXOP4_crt
+analysis_URXOP4_crt.imputed.cont_1999_2008$variables <- analysis_URXOP4_crt.imputed.cont_1999_2008$variables %>%
+  dplyr::select(-URXOP4)  # Drop the URXOP4 column to ensure no mix up in analysis
+dim(analysis_URXOP4_crt.imputed.cont_1999_2008) 
+#DAP1 12798 by 911
+#DAP2 12801 by 911, 
+#DAP3 12817 by 911, 
+#DAP4 12755 by 911,
+#DAP5 12802 by 911,
+#DAP6 12690 by 911
+
+```
+
+
+
+```{r URXOP1 create exposure variable for 2011-2018 survey object}
+#drop 
+analysis_URXOP1_crt<- subset(subset.elig.18.followed.nonzeroweight.creatinine_2011_2018, !is.na(URXOP1))
+dim(analysis_URXOP1_crt) #DAP 1: 12798
+
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+
+analysis_URXOP1_crt$variables=analysis_URXOP1_crt$variables %>% 
+  mutate(logcreatinine=log(URXUCR))
+
+#check percent missing on bmicat: about 1%, has missing category
+summary(subset.elig.18.followed.nonzeroweight.creatinine$variables$bmicat)
+
+# Fit the regression model and store predicted values
+analysis_URXOP1_crt$variables=analysis_URXOP1_crt$variables %>% 
+  mutate(logpredicted = predict(lm(logcreatinine ~ RIDAGEYR+sex+race+bmicat+SDDSRVYR, data=analysis_URXOP1_crt$variables)))
+View(analysis_URXOP1_crt$variables %>% select(logcreatinine, logpredicted))
+
+
+#create variables to get creatinine adjusted
+analysis_URXOP1_crt$variables=analysis_URXOP1_crt$variables %>% 
+  mutate(pC=exp(logpredicted),
+         Cratio=URXUCR/pC,
+         URXOP1_crt=URXOP1/Cratio)
+
+# View the updated dataset
+View(analysis_URXOP1_crt$variables %>% select(SEQN, logcreatinine, logpredicted, pC, URXUCR, Cratio, URXOP1, URXOP1_crt))
+
+head(analysis_URXOP1_crt$variables %>% select(SEQN, URXOP1_crt))
+max(analysis_URXOP1_crt$variables$URXOP1_crt)
+# analysis_URXOP1_crt$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP1_crt = max(URXOP1_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP1_crt$variables <- analysis_URXOP1_crt$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP1_crt,
+        breaks = quantile(URXOP1_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP1_crt$variables$quartile)
+
+quartile_check <- analysis_URXOP1_crt$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP1_crt = min(URXOP1_crt, na.rm = TRUE),
+    max_URXOP1_crt = max(URXOP1_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile) %>%   # Sort for easier comparison 
+ungroup()
+
+quartile_check #should be 25% per cycle and quartile level, may need to use this: detach("package:plyr", unload = TRUE) to allow for summarize and coun functions 
+
+#variables on other files use analysis_URXOP1_crt.imputed.cont, thus we create this dataset so we don't have to change everything
+analysis_URXOP1_crt.imputed.cont_2011_2018<- analysis_URXOP1_crt
+analysis_URXOP1_crt.imputed.cont_2011_2018$variables <- analysis_URXOP1_crt.imputed.cont_2011_2018$variables %>%
+  dplyr::select(-URXOP1)  # Drop the URXOP1 column to ensure no mix up in analysis
+dim(analysis_URXOP1_crt.imputed.cont_2011_2018) 
+#DAP1 12798 by 911
+#DAP2 12801 by 911, 
+#DAP3 12817 by 911, 
+#DAP4 12755 by 911,
+#DAP5 12802 by 911,
+#DAP6 12690 by 911
+
+```
+
+```{r URXOP3 create exposure variable for 2011-2018 survey object}
+#drop 
+analysis_URXOP3_crt<- subset(subset.elig.18.followed.nonzeroweight.creatinine_2011_2018, !is.na(URXOP3))
+dim(analysis_URXOP3_crt) #DAP 1: 12798
+
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+
+analysis_URXOP3_crt$variables=analysis_URXOP3_crt$variables %>% 
+  mutate(logcreatinine=log(URXUCR))
+
+#check percent missing on bmicat: about 1%, has missing category
+summary(subset.elig.18.followed.nonzeroweight.creatinine$variables$bmicat)
+
+# Fit the regression model and store predicted values
+analysis_URXOP3_crt$variables=analysis_URXOP3_crt$variables %>% 
+  mutate(logpredicted = predict(lm(logcreatinine ~ RIDAGEYR+sex+race+bmicat+SDDSRVYR, data=analysis_URXOP3_crt$variables)))
+View(analysis_URXOP3_crt$variables %>% select(logcreatinine, logpredicted))
+
+
+#create variables to get creatinine adjusted
+analysis_URXOP3_crt$variables=analysis_URXOP3_crt$variables %>% 
+  mutate(pC=exp(logpredicted),
+         Cratio=URXUCR/pC,
+         URXOP3_crt=URXOP3/Cratio)
+
+# View the updated dataset
+View(analysis_URXOP3_crt$variables %>% select(SEQN, logcreatinine, logpredicted, pC, URXUCR, Cratio, URXOP3, URXOP3_crt))
+
+head(analysis_URXOP3_crt$variables %>% select(SEQN, URXOP3_crt))
+max(analysis_URXOP3_crt$variables$URXOP3_crt)
+# analysis_URXOP3_crt$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP3_crt = max(URXOP3_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP3_crt$variables <- analysis_URXOP3_crt$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP3_crt,
+        breaks = quantile(URXOP3_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP3_crt$variables$quartile)
+
+quartile_check <- analysis_URXOP3_crt$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP3_crt = min(URXOP3_crt, na.rm = TRUE),
+    max_URXOP3_crt = max(URXOP3_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile) %>%   # Sort for easier comparison 
+ungroup()
+
+quartile_check #should be 25% per cycle and quartile level, may need to use this: detach("package:plyr", unload = TRUE) to allow for summarize and coun functions 
+
+#variables on other files use analysis_URXOP3_crt.imputed.cont, thus we create this dataset so we don't have to change everything
+analysis_URXOP3_crt.imputed.cont_2011_2018<- analysis_URXOP3_crt
+analysis_URXOP3_crt.imputed.cont_2011_2018$variables <- analysis_URXOP3_crt.imputed.cont_2011_2018$variables %>%
+  dplyr::select(-URXOP3)  # Drop the URXOP3 column to ensure no mix up in analysis
+dim(analysis_URXOP3_crt.imputed.cont_2011_2018) 
+#DAP1 12798 by 911
+#DAP2 12801 by 911, 
+#DAP3 12817 by 911, 
+#DAP4 12755 by 911,
+#DAP5 12802 by 911,
+#DAP6 12690 by 911
+
+```
+
+
+```{r create exposure variable for 2011-2018 survey object}
+#drop 
+analysis_URXOP4_crt<- subset(subset.elig.18.followed.nonzeroweight.creatinine_2011_2018, !is.na(URXOP4))
+dim(analysis_URXOP4_crt) #DAP 1: 12798
+
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+
+analysis_URXOP4_crt$variables=analysis_URXOP4_crt$variables %>% 
+  mutate(logcreatinine=log(URXUCR))
+
+#check percent missing on bmicat: about 1%, has missing category
+summary(subset.elig.18.followed.nonzeroweight.creatinine$variables$bmicat)
+
+# Fit the regression model and store predicted values
+analysis_URXOP4_crt$variables=analysis_URXOP4_crt$variables %>% 
+  mutate(logpredicted = predict(lm(logcreatinine ~ RIDAGEYR+sex+race+bmicat+SDDSRVYR, data=analysis_URXOP4_crt$variables)))
+View(analysis_URXOP4_crt$variables %>% select(logcreatinine, logpredicted))
+
+
+#create variables to get creatinine adjusted
+analysis_URXOP4_crt$variables=analysis_URXOP4_crt$variables %>% 
+  mutate(pC=exp(logpredicted),
+         Cratio=URXUCR/pC,
+         URXOP4_crt=URXOP4/Cratio)
+
+# View the updated dataset
+View(analysis_URXOP4_crt$variables %>% select(SEQN, logcreatinine, logpredicted, pC, URXUCR, Cratio, URXOP4, URXOP4_crt))
+
+head(analysis_URXOP4_crt$variables %>% select(SEQN, URXOP4_crt))
+max(analysis_URXOP4_crt$variables$URXOP4_crt)
+# analysis_URXOP4_crt$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP4_crt = max(URXOP4_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP4_crt$variables <- analysis_URXOP4_crt$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP4_crt,
+        breaks = quantile(URXOP4_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP4_crt$variables$quartile)
+
+quartile_check <- analysis_URXOP4_crt$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP4_crt = min(URXOP4_crt, na.rm = TRUE),
+    max_URXOP4_crt = max(URXOP4_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile) %>%   # Sort for easier comparison 
+ungroup()
+
+quartile_check #should be 25% per cycle and quartile level, may need to use this: detach("package:plyr", unload = TRUE) to allow for summarize and coun functions 
+
+#variables on other files use analysis_URXOP4_crt.imputed.cont, thus we create this dataset so we don't have to change everything
+analysis_URXOP4_crt.imputed.cont_2011_2018<- analysis_URXOP4_crt
+analysis_URXOP4_crt.imputed.cont_2011_2018$variables <- analysis_URXOP4_crt.imputed.cont_2011_2018$variables %>%
+  dplyr::select(-URXOP4)  # Drop the URXOP4 column to ensure no mix up in analysis
+dim(analysis_URXOP4_crt.imputed.cont_2011_2018) 
+#DAP1 12798 by 911
+#DAP2 12801 by 911, 
+#DAP3 12817 by 911, 
+#DAP4 12755 by 911,
+#DAP5 12802 by 911,
+#DAP6 12690 by 911
+
+```
+
+
+```{r DMP, all cause, 1999-2008}
+
+analysis_URXOP1_crt.imputed.cont_1999_2008$variables=analysis_URXOP1_crt.imputed.cont_1999_2008$variables %>% droplevels()
+
+all_cause_model_URXOP1_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP1_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+# #interaction
+# all_cause_model_URXOP1_quartile_adj.pval.strat_cycle_het<- svycoxph(
+#   formula = Surv(permth_exm, mortstat) ~ quartile*Strat_cycle+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+#   design = analysis_URXOP1_crt.imputed.cont)
+# 
+# View(all_cause_model_URXOP1_quartile_adj.pval.het$table_body)
+
+all_cause_model_URXOP1_quartile_adj.1999_2008.pval_numbers=all_cause_model_URXOP1_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP1_quartile_adj.1999_2008.pval_numbers
+
+all_cause_model_URXOP1_quartile_adj.1999_2008_numbers=all_cause_model_URXOP1_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="All cause",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+all_cause_model_URXOP1_quartile_adj.1999_2008_numbers
+
+all_cause_model_URXOP1_quartile_adj.1999_2008_final=bind_cols( all_cause_model_URXOP1_quartile_adj.1999_2008_numbers, all_cause_model_URXOP1_quartile_adj.1999_2008.pval_numbers)
+all_cause_model_URXOP1_quartile_adj.1999_2008_final
+
+all_cause_model_URXOP1_quartile_adj.1999_2008_final_wide=all_cause_model_URXOP1_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP1_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DMP, all cause, 2011-2018}
+
+analysis_URXOP1_crt.imputed.cont_2011_2018$variables=analysis_URXOP1_crt.imputed.cont_2011_2018$variables %>% droplevels()
+
+all_cause_model_URXOP1_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP1_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP1_quartile_adj.2011_2018.pval_numbers=all_cause_model_URXOP1_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP1_quartile_adj.2011_2018.pval_numbers
+
+all_cause_model_URXOP1_quartile_adj.2011_2018_numbers=all_cause_model_URXOP1_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="All cause",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+all_cause_model_URXOP1_quartile_adj.2011_2018_numbers
+
+all_cause_model_URXOP1_quartile_adj.2011_2018_final=bind_cols( all_cause_model_URXOP1_quartile_adj.2011_2018_numbers, all_cause_model_URXOP1_quartile_adj.2011_2018.pval_numbers)
+all_cause_model_URXOP1_quartile_adj.2011_2018_final
+
+all_cause_model_URXOP1_quartile_adj.2011_2018_final_wide=all_cause_model_URXOP1_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP1_quartile_adj.2011_2018_final_wide
+
+
+all_cause_URXOP1_Survey_Cycles=bind_rows(all_cause_model_URXOP1_quartile_adj.1999_2008_final_wide,all_cause_model_URXOP1_quartile_adj.2011_2018_final_wide)
+all_cause_URXOP1_Survey_Cycles
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r DMTP, all cause, 1999-2008}
+
+analysis_URXOP3_crt.imputed.cont_1999_2008$variables=analysis_URXOP3_crt.imputed.cont_1999_2008$variables %>% droplevels()
+all_cause_model_URXOP3_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP3_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP3_quartile_adj.1999_2008.pval_numbers=all_cause_model_URXOP3_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP3_quartile_adj.1999_2008.pval_numbers
+
+all_cause_model_URXOP3_quartile_adj.1999_2008_numbers=all_cause_model_URXOP3_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="All cause",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+all_cause_model_URXOP3_quartile_adj.1999_2008_numbers
+
+all_cause_model_URXOP3_quartile_adj.1999_2008_final=bind_cols( all_cause_model_URXOP3_quartile_adj.1999_2008_numbers, all_cause_model_URXOP3_quartile_adj.1999_2008.pval_numbers)
+all_cause_model_URXOP3_quartile_adj.1999_2008_final
+
+all_cause_model_URXOP3_quartile_adj.1999_2008_final_wide=all_cause_model_URXOP3_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP3_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DMTP, all cause, 2011-2018}
+
+analysis_URXOP3_crt.imputed.cont_2011_2018$variables=analysis_URXOP3_crt.imputed.cont_2011_2018$variables %>% droplevels()
+all_cause_model_URXOP3_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP3_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP3_quartile_adj.2011_2018.pval_numbers=all_cause_model_URXOP3_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP3_quartile_adj.2011_2018.pval_numbers
+
+all_cause_model_URXOP3_quartile_adj.2011_2018_numbers=all_cause_model_URXOP3_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="All cause",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+all_cause_model_URXOP3_quartile_adj.2011_2018_numbers
+
+all_cause_model_URXOP3_quartile_adj.2011_2018_final=bind_cols( all_cause_model_URXOP3_quartile_adj.2011_2018_numbers, all_cause_model_URXOP3_quartile_adj.2011_2018.pval_numbers)
+all_cause_model_URXOP3_quartile_adj.2011_2018_final
+
+all_cause_model_URXOP3_quartile_adj.2011_2018_final_wide=all_cause_model_URXOP3_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP3_quartile_adj.2011_2018_final_wide
+
+
+all_cause_URXOP3_Survey_Cycles=bind_rows(all_cause_model_URXOP3_quartile_adj.1999_2008_final_wide,all_cause_model_URXOP3_quartile_adj.2011_2018_final_wide)
+all_cause_URXOP3_Survey_Cycles
+
+
+```
+
+
+
+
+
+
+
+
+```{r DETP, all cause, 1999-2008}
+
+analysis_URXOP4_crt.imputed.cont_1999_2008$variables=analysis_URXOP4_crt.imputed.cont_1999_2008$variables %>% droplevels()
+
+all_cause_model_URXOP4_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP4_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP4_quartile_adj.1999_2008.pval_numbers=all_cause_model_URXOP4_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP4_quartile_adj.1999_2008.pval_numbers
+
+all_cause_model_URXOP4_quartile_adj.1999_2008_numbers=all_cause_model_URXOP4_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="All cause",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+all_cause_model_URXOP4_quartile_adj.1999_2008_numbers
+
+all_cause_model_URXOP4_quartile_adj.1999_2008_final=bind_cols( all_cause_model_URXOP4_quartile_adj.1999_2008_numbers, all_cause_model_URXOP4_quartile_adj.1999_2008.pval_numbers)
+all_cause_model_URXOP4_quartile_adj.1999_2008_final
+
+all_cause_model_URXOP4_quartile_adj.1999_2008_final_wide=all_cause_model_URXOP4_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP4_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DETP, all cause, 2011-2018}
+analysis_URXOP4_crt.imputed.cont_2011_2018$variables=analysis_URXOP4_crt.imputed.cont_2011_2018$variables %>% droplevels()
+
+all_cause_model_URXOP4_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP4_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP4_quartile_adj.2011_2018.pval_numbers=all_cause_model_URXOP4_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP4_quartile_adj.2011_2018.pval_numbers
+
+all_cause_model_URXOP4_quartile_adj.2011_2018_numbers=all_cause_model_URXOP4_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="All cause",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+all_cause_model_URXOP4_quartile_adj.2011_2018_numbers
+
+all_cause_model_URXOP4_quartile_adj.2011_2018_final=bind_cols( all_cause_model_URXOP4_quartile_adj.2011_2018_numbers, all_cause_model_URXOP4_quartile_adj.2011_2018.pval_numbers)
+all_cause_model_URXOP4_quartile_adj.2011_2018_final
+
+all_cause_model_URXOP4_quartile_adj.2011_2018_final_wide=all_cause_model_URXOP4_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP4_quartile_adj.2011_2018_final_wide
+
+
+all_cause_URXOP4_Survey_Cycles=bind_rows(all_cause_model_URXOP4_quartile_adj.1999_2008_final_wide,all_cause_model_URXOP4_quartile_adj.2011_2018_final_wide)
+all_cause_URXOP4_Survey_Cycles
+
+
+```
+
+
+
+
+
+
+
+
+```{r DMP, CVD_death, 1999-2008}
+
+
+CVD_death_model_URXOP1_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+CVD_death_model_URXOP1_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP1_quartile_adj.1999_2008.pval_numbers=CVD_death_model_URXOP1_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP1_quartile_adj.1999_2008.pval_numbers
+
+CVD_death_model_URXOP1_quartile_adj.1999_2008_numbers=CVD_death_model_URXOP1_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="CVD_death",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+CVD_death_model_URXOP1_quartile_adj.1999_2008_numbers
+
+CVD_death_model_URXOP1_quartile_adj.1999_2008_final=bind_cols( CVD_death_model_URXOP1_quartile_adj.1999_2008_numbers, CVD_death_model_URXOP1_quartile_adj.1999_2008.pval_numbers)
+CVD_death_model_URXOP1_quartile_adj.1999_2008_final
+
+CVD_death_model_URXOP1_quartile_adj.1999_2008_final_wide=CVD_death_model_URXOP1_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP1_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DMP, CVD_death, 2011-2018}
+
+CVD_death_model_URXOP1_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP1_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP1_quartile_adj.2011_2018.pval_numbers=CVD_death_model_URXOP1_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP1_quartile_adj.2011_2018.pval_numbers
+
+CVD_death_model_URXOP1_quartile_adj.2011_2018_numbers=CVD_death_model_URXOP1_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="CVD_death",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+CVD_death_model_URXOP1_quartile_adj.2011_2018_numbers
+
+CVD_death_model_URXOP1_quartile_adj.2011_2018_final=bind_cols( CVD_death_model_URXOP1_quartile_adj.2011_2018_numbers, CVD_death_model_URXOP1_quartile_adj.2011_2018.pval_numbers)
+CVD_death_model_URXOP1_quartile_adj.2011_2018_final
+
+CVD_death_model_URXOP1_quartile_adj.2011_2018_final_wide=CVD_death_model_URXOP1_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP1_quartile_adj.2011_2018_final_wide
+
+
+CVD_death_URXOP1_Survey_Cycles=bind_rows(CVD_death_model_URXOP1_quartile_adj.1999_2008_final_wide,CVD_death_model_URXOP1_quartile_adj.2011_2018_final_wide)
+CVD_death_URXOP1_Survey_Cycles
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r DMTP, CVD_death, 1999-2008}
+
+
+CVD_death_model_URXOP3_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+CVD_death_model_URXOP3_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP3_quartile_adj.1999_2008.pval_numbers=CVD_death_model_URXOP3_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP3_quartile_adj.1999_2008.pval_numbers
+
+CVD_death_model_URXOP3_quartile_adj.1999_2008_numbers=CVD_death_model_URXOP3_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="CVD_death",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+CVD_death_model_URXOP3_quartile_adj.1999_2008_numbers
+
+CVD_death_model_URXOP3_quartile_adj.1999_2008_final=bind_cols( CVD_death_model_URXOP3_quartile_adj.1999_2008_numbers, CVD_death_model_URXOP3_quartile_adj.1999_2008.pval_numbers)
+CVD_death_model_URXOP3_quartile_adj.1999_2008_final
+
+CVD_death_model_URXOP3_quartile_adj.1999_2008_final_wide=CVD_death_model_URXOP3_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP3_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DMTP, CVD_death, 2011-2018}
+
+
+CVD_death_model_URXOP3_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP3_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont.2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP3_quartile_adj.2011_2018.pval_numbers=CVD_death_model_URXOP3_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP3_quartile_adj.2011_2018.pval_numbers
+
+CVD_death_model_URXOP3_quartile_adj.2011_2018_numbers=CVD_death_model_URXOP3_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="CVD_death",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+CVD_death_model_URXOP3_quartile_adj.2011_2018_numbers
+
+CVD_death_model_URXOP3_quartile_adj.2011_2018_final=bind_cols( CVD_death_model_URXOP3_quartile_adj.2011_2018_numbers, CVD_death_model_URXOP3_quartile_adj.2011_2018.pval_numbers)
+CVD_death_model_URXOP3_quartile_adj.2011_2018_final
+
+CVD_death_model_URXOP3_quartile_adj.2011_2018_final_wide=CVD_death_model_URXOP3_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP3_quartile_adj.2011_2018_final_wide
+
+
+CVD_death_URXOP3_Survey_Cycles=bind_rows(CVD_death_model_URXOP3_quartile_adj.1999_2008_final_wide,CVD_death_model_URXOP3_quartile_adj.2011_2018_final_wide)
+CVD_death_URXOP3_Survey_Cycles
+
+
+```
+
+
+
+
+
+
+
+
+```{r DETP, CVD_death, 1999-2008}
+
+
+CVD_death_model_URXOP4_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+CVD_death_model_URXOP4_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP4_quartile_adj.1999_2008.pval_numbers=CVD_death_model_URXOP4_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP4_quartile_adj.1999_2008.pval_numbers
+
+CVD_death_model_URXOP4_quartile_adj.1999_2008_numbers=CVD_death_model_URXOP4_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="CVD_death",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+CVD_death_model_URXOP4_quartile_adj.1999_2008_numbers
+
+CVD_death_model_URXOP4_quartile_adj.1999_2008_final=bind_cols( CVD_death_model_URXOP4_quartile_adj.1999_2008_numbers, CVD_death_model_URXOP4_quartile_adj.1999_2008.pval_numbers)
+CVD_death_model_URXOP4_quartile_adj.1999_2008_final
+
+CVD_death_model_URXOP4_quartile_adj.1999_2008_final_wide=CVD_death_model_URXOP4_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP4_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DETP, CVD_death, 2011-2018}
+
+
+CVD_death_model_URXOP4_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP4_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont.2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_death_model_URXOP4_quartile_adj.2011_2018.pval_numbers=CVD_death_model_URXOP4_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP4_quartile_adj.2011_2018.pval_numbers
+
+CVD_death_model_URXOP4_quartile_adj.2011_2018_numbers=CVD_death_model_URXOP4_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="CVD_death",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+CVD_death_model_URXOP4_quartile_adj.2011_2018_numbers
+
+CVD_death_model_URXOP4_quartile_adj.2011_2018_final=bind_cols( CVD_death_model_URXOP4_quartile_adj.2011_2018_numbers, CVD_death_model_URXOP4_quartile_adj.2011_2018.pval_numbers)
+CVD_death_model_URXOP4_quartile_adj.2011_2018_final
+
+CVD_death_model_URXOP4_quartile_adj.2011_2018_final_wide=CVD_death_model_URXOP4_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP4_quartile_adj.2011_2018_final_wide
+
+
+CVD_death_URXOP4_Survey_Cycles=bind_rows(CVD_death_model_URXOP4_quartile_adj.1999_2008_final_wide,CVD_death_model_URXOP4_quartile_adj.2011_2018_final_wide)
+CVD_death_URXOP4_Survey_Cycles
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r DMP, cancer_death, 1999-2008}
+
+
+cancer_death_model_URXOP1_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+cancer_death_model_URXOP1_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP1_quartile_adj.1999_2008.pval_numbers=cancer_death_model_URXOP1_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP1_quartile_adj.1999_2008.pval_numbers
+
+cancer_death_model_URXOP1_quartile_adj.1999_2008_numbers=cancer_death_model_URXOP1_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="cancer_death",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+cancer_death_model_URXOP1_quartile_adj.1999_2008_numbers
+
+cancer_death_model_URXOP1_quartile_adj.1999_2008_final=bind_cols( cancer_death_model_URXOP1_quartile_adj.1999_2008_numbers, cancer_death_model_URXOP1_quartile_adj.1999_2008.pval_numbers)
+cancer_death_model_URXOP1_quartile_adj.1999_2008_final
+
+cancer_death_model_URXOP1_quartile_adj.1999_2008_final_wide=cancer_death_model_URXOP1_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP1_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DMP, cancer_death, 2011-2018}
+
+
+cancer_death_model_URXOP1_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont.2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP1_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont.2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP1_quartile_adj.2011_2018.pval_numbers=cancer_death_model_URXOP1_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP1_quartile_adj.2011_2018.pval_numbers
+
+cancer_death_model_URXOP1_quartile_adj.2011_2018_numbers=cancer_death_model_URXOP1_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="cancer_death",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+cancer_death_model_URXOP1_quartile_adj.2011_2018_numbers
+
+cancer_death_model_URXOP1_quartile_adj.2011_2018_final=bind_cols( cancer_death_model_URXOP1_quartile_adj.2011_2018_numbers, cancer_death_model_URXOP1_quartile_adj.2011_2018.pval_numbers)
+cancer_death_model_URXOP1_quartile_adj.2011_2018_final
+
+cancer_death_model_URXOP1_quartile_adj.2011_2018_final_wide=cancer_death_model_URXOP1_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP1_quartile_adj.2011_2018_final_wide
+
+
+cancer_death_URXOP1_Survey_Cycles=bind_rows(cancer_death_model_URXOP1_quartile_adj.1999_2008_final_wide,cancer_death_model_URXOP1_quartile_adj.2011_2018_final_wide)
+cancer_death_URXOP1_Survey_Cycles
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r DMTP, cancer_death, 1999-2008}
+
+
+cancer_death_model_URXOP3_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+cancer_death_model_URXOP3_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP3_quartile_adj.1999_2008.pval_numbers=cancer_death_model_URXOP3_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP3_quartile_adj.1999_2008.pval_numbers
+
+cancer_death_model_URXOP3_quartile_adj.1999_2008_numbers=cancer_death_model_URXOP3_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="cancer_death",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+cancer_death_model_URXOP3_quartile_adj.1999_2008_numbers
+
+cancer_death_model_URXOP3_quartile_adj.1999_2008_final=bind_cols( cancer_death_model_URXOP3_quartile_adj.1999_2008_numbers, cancer_death_model_URXOP3_quartile_adj.1999_2008.pval_numbers)
+cancer_death_model_URXOP3_quartile_adj.1999_2008_final
+
+cancer_death_model_URXOP3_quartile_adj.1999_2008_final_wide=cancer_death_model_URXOP3_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP3_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DMTP, cancer_death, 2011-2018}
+
+
+cancer_death_model_URXOP3_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont.2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP3_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont.2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP3_quartile_adj.2011_2018.pval_numbers=cancer_death_model_URXOP3_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP3_quartile_adj.2011_2018.pval_numbers
+
+cancer_death_model_URXOP3_quartile_adj.2011_2018_numbers=cancer_death_model_URXOP3_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="cancer_death",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+cancer_death_model_URXOP3_quartile_adj.2011_2018_numbers
+
+cancer_death_model_URXOP3_quartile_adj.2011_2018_final=bind_cols( cancer_death_model_URXOP3_quartile_adj.2011_2018_numbers, cancer_death_model_URXOP3_quartile_adj.2011_2018.pval_numbers)
+cancer_death_model_URXOP3_quartile_adj.2011_2018_final
+
+cancer_death_model_URXOP3_quartile_adj.2011_2018_final_wide=cancer_death_model_URXOP3_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP3_quartile_adj.2011_2018_final_wide
+
+
+cancer_death_URXOP3_Survey_Cycles=bind_rows(cancer_death_model_URXOP3_quartile_adj.1999_2008_final_wide,cancer_death_model_URXOP3_quartile_adj.2011_2018_final_wide)
+cancer_death_URXOP3_Survey_Cycles
+
+
+```
+
+
+
+
+
+
+
+
+```{r DETP, cancer_death, 1999-2008}
+
+cancer_death_model_URXOP4_quartile_adj.1999_2008 <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+cancer_death_model_URXOP4_quartile_adj.1999_2008.pval <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont_1999_2008)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP4_quartile_adj.1999_2008.pval_numbers=cancer_death_model_URXOP4_quartile_adj.1999_2008.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP4_quartile_adj.1999_2008.pval_numbers
+
+cancer_death_model_URXOP4_quartile_adj.1999_2008_numbers=cancer_death_model_URXOP4_quartile_adj.1999_2008$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="cancer_death",
+    Survey_Cycles="1999-2008",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+cancer_death_model_URXOP4_quartile_adj.1999_2008_numbers
+
+cancer_death_model_URXOP4_quartile_adj.1999_2008_final=bind_cols( cancer_death_model_URXOP4_quartile_adj.1999_2008_numbers, cancer_death_model_URXOP4_quartile_adj.1999_2008.pval_numbers)
+cancer_death_model_URXOP4_quartile_adj.1999_2008_final
+
+cancer_death_model_URXOP4_quartile_adj.1999_2008_final_wide=cancer_death_model_URXOP4_quartile_adj.1999_2008_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP4_quartile_adj.1999_2008_final_wide
+```
+
+
+```{r DETP, cancer_death, 2011-2018}
+
+
+cancer_death_model_URXOP4_quartile_adj.2011_2018<- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont.2011_2018) %>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP4_quartile_adj.2011_2018.pval <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont.2011_2018)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_death_model_URXOP4_quartile_adj.2011_2018.pval_numbers=cancer_death_model_URXOP4_quartile_adj.2011_2018.pval$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP4_quartile_adj.2011_2018.pval_numbers
+
+cancer_death_model_URXOP4_quartile_adj.2011_2018_numbers=cancer_death_model_URXOP4_quartile_adj.2011_2018$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="cancer_death",
+    Survey_Cycles="2011-2018",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, Survey_Cycles, term, HR_CI)
+
+cancer_death_model_URXOP4_quartile_adj.2011_2018_numbers
+
+cancer_death_model_URXOP4_quartile_adj.2011_2018_final=bind_cols( cancer_death_model_URXOP4_quartile_adj.2011_2018_numbers, cancer_death_model_URXOP4_quartile_adj.2011_2018.pval_numbers)
+cancer_death_model_URXOP4_quartile_adj.2011_2018_final
+
+cancer_death_model_URXOP4_quartile_adj.2011_2018_final_wide=cancer_death_model_URXOP4_quartile_adj.2011_2018_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, Survey_Cycles, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP4_quartile_adj.2011_2018_final_wide
+
+
+cancer_death_URXOP4_Survey_Cycles=bind_rows(cancer_death_model_URXOP4_quartile_adj.1999_2008_final_wide,cancer_death_model_URXOP4_quartile_adj.2011_2018_final_wide)
+cancer_death_URXOP4_Survey_Cycles
+
+
+```
+
+
+
+```{r}
+bind_rows=bind_rows(all_cause_URXOP1_Survey_Cycles, all_cause_URXOP3_Survey_Cycles, all_cause_URXOP4_Survey_Cycles, CVD_death_URXOP1_Survey_Cycles, CVD_death_URXOP3_Survey_Cycles, CVD_death_URXOP4_Survey_Cycles, cancer_death_URXOP1_Survey_Cycles, cancer_death_URXOP3_Survey_Cycles, cancer_death_URXOP4_Survey_Cycles)
+
+bind_rows=bind_rows %>% mutate(p.value=round(p.value, 2))
+View(bind_rows)
+
+```
