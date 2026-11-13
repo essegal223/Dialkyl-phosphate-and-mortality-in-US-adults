@@ -1,0 +1,748 @@
+---
+title: " 2 year death lag"
+author: "Emily"
+date: "2026-11-13"
+output: html_document
+---
+# Note: subset data, then recreate quartile variable
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r DMP subset: exclude individuals who died within the first 24 months}
+
+analysis_URXOP1_crt.death.lag<-subset(analysis_URXOP1_crt, !(mortstat==1 & permth_exm<=24))
+
+dim(analysis_URXOP1_crt.death.lag)
+```
+
+```{r DMP dataset: create CVD death and cancer death variables}
+#death due to CVD vs all other people; create CVD_death variable
+analysis_URXOP1_crt.death.lag$variables  <- analysis_URXOP1_crt.death.lag$variables %>%
+  mutate(CVD_death = case_when(
+    ucod_leading==1~1,
+    TRUE ~ 0
+  ))
+
+table(analysis_URXOP1_crt.death.lag$variables$CVD_death, useNA = "always")
+
+CVD_dead_by_quartile <- analysis_URXOP1_crt.death.lag$variables %>%  
+  group_by(quartile) %>%                     # Group by quartile
+  summarise(
+    deaths = sum(CVD_death == 1),  # Count deaths where mortstat == 1
+    total  = n() # Count total rows
+  )
+
+CVD_dead_by_quartile
+
+#death due to cancer vs all other people; create cancer_death variable
+analysis_URXOP1_crt.death.lag$variables  <- analysis_URXOP1_crt.death.lag$variables %>%
+  mutate(cancer_death = case_when(
+    ucod_leading==2~1,
+    TRUE ~ 0
+  ))
+
+
+cancer_dead_by_quartile <- analysis_URXOP1_crt.death.lag$variables %>%  
+  group_by(quartile) %>%                     # Group by quartile
+  summarise(
+    deaths = sum(cancer_death == 1),  # Count deaths where mortstat == 1
+    total  = n() # Count total rows
+  )
+
+cancer_dead_by_quartile
+
+#analysis_URXOP1_crt.death.lag$variables |> count(mortstat, CVD_death)
+#analysis_URXOP1_crt.death.lag$variables |> count(mortstat, cancer_death)
+```
+
+
+```{r DMP dataset: create quartile variable for subgroup (individuals who DID NOT die within the first 24 months)}
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+analysis_URXOP1_crt.death.lag$variables<- analysis_URXOP1_crt.death.lag$variables %>% 
+  mutate(logC = log(URXUCR))
+
+# Fit the regression model
+#check percent missing on bmicat: about 1%, has missing category
+summary(analysis_URXOP1_crt.death.lag$variables$bmicat)
+model <- lm(logC ~ RIDAGEYR+ sex+race+bmicat+SDDSRVYR, data = analysis_URXOP1_crt.death.lag$variables)
+
+# Add predicted values variable to the dataset
+analysis_URXOP1_crt.death.lag$variables$plogC <- predict(model, data = analysis_URXOP1_crt.death.lag$variables)
+
+# Compute new variables
+analysis_URXOP1_crt.death.lag$variables <- analysis_URXOP1_crt.death.lag$variables %>%
+  mutate(
+    pC = exp(plogC),
+    Cratio = URXUCR / pC,
+    URXOP1_crt = URXOP1 / Cratio
+  )
+
+# View the updated dataset
+head(analysis_URXOP1_crt.death.lag$variables %>% select(SEQN, URXOP1_crt))
+
+
+max(analysis_URXOP1_crt.death.lag$variables$URXOP1_crt)
+# analysis_URXOP1_crt.death.lag$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP1_crt = max(URXOP1_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP1_crt.death.lag$variables <- analysis_URXOP1_crt.death.lag$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP1_crt,
+        breaks = quantile(URXOP1_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP1_crt.death.lag$variables$quartile)
+
+quartile_check <- analysis_URXOP1_crt.death.lag$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP1_crt = min(URXOP1_crt, na.rm = TRUE),
+    max_URXOP1_crt = max(URXOP1_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile)   # Sort for easier comparison
+
+quartile_check
+```
+
+```{r DMP, all-cause modeling}
+# Q2, Q3, Q4 hazard ratios
+all_cause_model_URXOP1_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+all_cause_model_URXOP1_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DMP, all-cause modeling extract estimates into table}
+all_cause_model_URXOP1_quartile_adj_death_lag_p_trend_numbers=all_cause_model_URXOP1_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP1_quartile_adj_death_lag_p_trend_numbers
+
+all_cause_model_URXOP1_quartile_adj_death_lag_numbers=all_cause_model_URXOP1_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP1_quartile_adj_death_lag_numbers
+
+all_cause_model_URXOP1_quartile_adj_death_lag_final=bind_cols( all_cause_model_URXOP1_quartile_adj_death_lag_numbers, all_cause_model_URXOP1_quartile_adj_death_lag_p_trend_numbers)
+all_cause_model_URXOP1_quartile_adj_death_lag_final
+
+all_cause_model_URXOP1_quartile_adj_death_lag_final_wide=all_cause_model_URXOP1_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP1_quartile_adj_death_lag_final_wide
+```
+
+
+
+```{r DMP, CVD_death modeling}
+# Q2, Q3, Q4 hazard ratios
+CVD_death_model_URXOP1_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+CVD_death_model_URXOP1_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DMP, CVD_death modeling extract estimates into table}
+CVD_death_model_URXOP1_quartile_adj_death_lag_p_trend_numbers=CVD_death_model_URXOP1_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP1_quartile_adj_death_lag_p_trend_numbers
+
+CVD_death_model_URXOP1_quartile_adj_death_lag_numbers=CVD_death_model_URXOP1_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="CVD Death",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_death_model_URXOP1_quartile_adj_death_lag_numbers
+
+CVD_death_model_URXOP1_quartile_adj_death_lag_final=bind_cols( CVD_death_model_URXOP1_quartile_adj_death_lag_numbers, CVD_death_model_URXOP1_quartile_adj_death_lag_p_trend_numbers)
+CVD_death_model_URXOP1_quartile_adj_death_lag_final
+
+CVD_death_model_URXOP1_quartile_adj_death_lag_final_wide=CVD_death_model_URXOP1_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP1_quartile_adj_death_lag_final_wide
+```
+
+
+
+
+```{r DMP, cancer_death modeling}
+# Q2, Q3, Q4 hazard ratios
+cancer_death_model_URXOP1_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+cancer_death_model_URXOP1_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DMP, cancer_death modeling extract estimates into table}
+cancer_death_model_URXOP1_quartile_adj_death_lag_p_trend_numbers=cancer_death_model_URXOP1_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP1_quartile_adj_death_lag_p_trend_numbers
+
+cancer_death_model_URXOP1_quartile_adj_death_lag_numbers=cancer_death_model_URXOP1_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="cancer Death",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_death_model_URXOP1_quartile_adj_death_lag_numbers
+
+cancer_death_model_URXOP1_quartile_adj_death_lag_final=bind_cols( cancer_death_model_URXOP1_quartile_adj_death_lag_numbers, cancer_death_model_URXOP1_quartile_adj_death_lag_p_trend_numbers)
+cancer_death_model_URXOP1_quartile_adj_death_lag_final
+
+cancer_death_model_URXOP1_quartile_adj_death_lag_final_wide=cancer_death_model_URXOP1_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP1_quartile_adj_death_lag_final_wide
+```
+
+
+
+```{r DMTP subset: exclude individuals who died within the first 24 months}
+
+analysis_URXOP3_crt.death.lag<-subset(analysis_URXOP3_crt, !(mortstat==1 & permth_exm<=24))
+
+dim(analysis_URXOP3_crt.death.lag)
+```
+
+```{r DMTP dataset: create CVD death and cancer death variables}
+#death due to CVD vs all other people; create CVD_death variable
+analysis_URXOP3_crt.death.lag$variables  <- analysis_URXOP3_crt.death.lag$variables %>%
+  mutate(CVD_death = case_when(
+    ucod_leading==1~1,
+    TRUE ~ 0
+  ))
+
+table(analysis_URXOP3_crt.death.lag$variables$CVD_death, useNA = "always")
+
+CVD_dead_by_quartile <- analysis_URXOP3_crt.death.lag$variables %>%  
+  group_by(quartile) %>%                     # Group by quartile
+  summarise(
+    deaths = sum(CVD_death == 1),  # Count deaths where mortstat == 1
+    total  = n() # Count total rows
+  )
+
+CVD_dead_by_quartile
+
+#death due to cancer vs all other people; create cancer_death variable
+analysis_URXOP3_crt.death.lag$variables  <- analysis_URXOP3_crt.death.lag$variables %>%
+  mutate(cancer_death = case_when(
+    ucod_leading==2~1,
+    TRUE ~ 0
+  ))
+
+
+cancer_dead_by_quartile <- analysis_URXOP3_crt.death.lag$variables %>%  
+  group_by(quartile) %>%                     # Group by quartile
+  summarise(
+    deaths = sum(cancer_death == 1),  # Count deaths where mortstat == 1
+    total  = n() # Count total rows
+  )
+
+cancer_dead_by_quartile
+
+#analysis_URXOP3_crt.death.lag$variables |> count(mortstat, CVD_death)
+#analysis_URXOP3_crt.death.lag$variables |> count(mortstat, cancer_death)
+```
+
+
+```{r DMTP dataset: create quartile variable for subgroup (individuals who DID NOT die within the first 24 months)}
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+analysis_URXOP3_crt.death.lag$variables<- analysis_URXOP3_crt.death.lag$variables %>% 
+  mutate(logC = log(URXUCR))
+
+# Fit the regression model
+#check percent missing on bmicat: about 1%, has missing category
+summary(analysis_URXOP3_crt.death.lag$variables$bmicat)
+model <- lm(logC ~ RIDAGEYR+ sex+race+bmicat+SDDSRVYR, data = analysis_URXOP3_crt.death.lag$variables)
+
+# Add predicted values variable to the dataset
+analysis_URXOP3_crt.death.lag$variables$plogC <- predict(model, data = analysis_URXOP3_crt.death.lag$variables)
+
+# Compute new variables
+analysis_URXOP3_crt.death.lag$variables <- analysis_URXOP3_crt.death.lag$variables %>%
+  mutate(
+    pC = exp(plogC),
+    Cratio = URXUCR / pC,
+    URXOP3_crt = URXOP3 / Cratio
+  )
+
+# View the updated dataset
+head(analysis_URXOP3_crt.death.lag$variables %>% select(SEQN, URXOP3_crt))
+
+
+max(analysis_URXOP3_crt.death.lag$variables$URXOP3_crt)
+# analysis_URXOP3_crt.death.lag$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP3_crt = max(URXOP3_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP3_crt.death.lag$variables <- analysis_URXOP3_crt.death.lag$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP3_crt,
+        breaks = quantile(URXOP3_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP3_crt.death.lag$variables$quartile)
+
+quartile_check <- analysis_URXOP3_crt.death.lag$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP3_crt = min(URXOP3_crt, na.rm = TRUE),
+    max_URXOP3_crt = max(URXOP3_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile)   # Sort for easier comparison
+
+quartile_check
+```
+
+
+
+
+
+
+
+```{r DMTP, all-cause modeling}
+# Q2, Q3, Q4 hazard ratios
+all_cause_model_URXOP3_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+all_cause_model_URXOP3_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DMTP, all-cause modeling extract estimates into table}
+all_cause_model_URXOP3_quartile_adj_death_lag_p_trend_numbers=all_cause_model_URXOP3_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP3_quartile_adj_death_lag_p_trend_numbers
+
+all_cause_model_URXOP3_quartile_adj_death_lag_numbers=all_cause_model_URXOP3_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP3_quartile_adj_death_lag_numbers
+
+all_cause_model_URXOP3_quartile_adj_death_lag_final=bind_cols( all_cause_model_URXOP3_quartile_adj_death_lag_numbers, all_cause_model_URXOP3_quartile_adj_death_lag_p_trend_numbers)
+all_cause_model_URXOP3_quartile_adj_death_lag_final
+
+all_cause_model_URXOP3_quartile_adj_death_lag_final_wide=all_cause_model_URXOP3_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP3_quartile_adj_death_lag_final_wide
+```
+
+
+
+```{r DMTP, CVD_death modeling}
+# Q2, Q3, Q4 hazard ratios
+CVD_death_model_URXOP3_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+CVD_death_model_URXOP3_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DMTP, CVD_death modeling extract estimates into table}
+CVD_death_model_URXOP3_quartile_adj_death_lag_p_trend_numbers=CVD_death_model_URXOP3_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP3_quartile_adj_death_lag_p_trend_numbers
+
+CVD_death_model_URXOP3_quartile_adj_death_lag_numbers=CVD_death_model_URXOP3_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="CVD Death",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_death_model_URXOP3_quartile_adj_death_lag_numbers
+
+CVD_death_model_URXOP3_quartile_adj_death_lag_final=bind_cols( CVD_death_model_URXOP3_quartile_adj_death_lag_numbers, CVD_death_model_URXOP3_quartile_adj_death_lag_p_trend_numbers)
+CVD_death_model_URXOP3_quartile_adj_death_lag_final
+
+CVD_death_model_URXOP3_quartile_adj_death_lag_final_wide=CVD_death_model_URXOP3_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP3_quartile_adj_death_lag_final_wide
+```
+
+
+
+
+```{r DMTP, cancer_death modeling}
+# Q2, Q3, Q4 hazard ratios
+cancer_death_model_URXOP3_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+cancer_death_model_URXOP3_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DMTP, cancer_death modeling extract estimates into table}
+cancer_death_model_URXOP3_quartile_adj_death_lag_p_trend_numbers=cancer_death_model_URXOP3_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP3_quartile_adj_death_lag_p_trend_numbers
+
+cancer_death_model_URXOP3_quartile_adj_death_lag_numbers=cancer_death_model_URXOP3_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="cancer Death",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_death_model_URXOP3_quartile_adj_death_lag_numbers
+
+cancer_death_model_URXOP3_quartile_adj_death_lag_final=bind_cols( cancer_death_model_URXOP3_quartile_adj_death_lag_numbers, cancer_death_model_URXOP3_quartile_adj_death_lag_p_trend_numbers)
+cancer_death_model_URXOP3_quartile_adj_death_lag_final
+
+cancer_death_model_URXOP3_quartile_adj_death_lag_final_wide=cancer_death_model_URXOP3_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP3_quartile_adj_death_lag_final_wide
+```
+
+
+
+
+
+
+
+```{r DETP subset: exclude individuals who died within the first 24 months}
+
+analysis_URXOP4_crt.death.lag<-subset(analysis_URXOP4_crt, !(mortstat==1 & permth_exm<=24))
+
+dim(analysis_URXOP4_crt.death.lag)
+```
+
+```{r DETP dataset: create CVD death and cancer death variables}
+#death due to CVD vs all other people; create CVD_death variable
+analysis_URXOP4_crt.death.lag$variables  <- analysis_URXOP4_crt.death.lag$variables %>%
+  mutate(CVD_death = case_when(
+    ucod_leading==1~1,
+    TRUE ~ 0
+  ))
+
+table(analysis_URXOP4_crt.death.lag$variables$CVD_death, useNA = "always")
+
+CVD_dead_by_quartile <- analysis_URXOP4_crt.death.lag$variables %>%  
+  group_by(quartile) %>%                     # Group by quartile
+  summarise(
+    deaths = sum(CVD_death == 1),  # Count deaths where mortstat == 1
+    total  = n() # Count total rows
+  )
+
+CVD_dead_by_quartile
+
+#death due to cancer vs all other people; create cancer_death variable
+analysis_URXOP4_crt.death.lag$variables  <- analysis_URXOP4_crt.death.lag$variables %>%
+  mutate(cancer_death = case_when(
+    ucod_leading==2~1,
+    TRUE ~ 0
+  ))
+
+
+cancer_dead_by_quartile <- analysis_URXOP4_crt.death.lag$variables %>%  
+  group_by(quartile) %>%                     # Group by quartile
+  summarise(
+    deaths = sum(cancer_death == 1),  # Count deaths where mortstat == 1
+    total  = n() # Count total rows
+  )
+
+cancer_dead_by_quartile
+
+#analysis_URXOP4_crt.death.lag$variables |> count(mortstat, CVD_death)
+#analysis_URXOP4_crt.death.lag$variables |> count(mortstat, cancer_death)
+```
+
+
+```{r DETP dataset: create quartile variable for subgroup (individuals who DID NOT die within the first 24 months)}
+#create creatinine adjusted exposure (O'Brien's method)
+# take the log of creatinine variable
+analysis_URXOP4_crt.death.lag$variables<- analysis_URXOP4_crt.death.lag$variables %>% 
+  mutate(logC = log(URXUCR))
+
+# Fit the regression model
+#check percent missing on bmicat: about 1%, has missing category
+summary(analysis_URXOP4_crt.death.lag$variables$bmicat)
+model <- lm(logC ~ RIDAGEYR+ sex+race+bmicat+SDDSRVYR, data = analysis_URXOP4_crt.death.lag$variables)
+
+# Add predicted values variable to the dataset
+analysis_URXOP4_crt.death.lag$variables$plogC <- predict(model, data = analysis_URXOP4_crt.death.lag$variables)
+
+# Compute new variables
+analysis_URXOP4_crt.death.lag$variables <- analysis_URXOP4_crt.death.lag$variables %>%
+  mutate(
+    pC = exp(plogC),
+    Cratio = URXUCR / pC,
+    URXOP4_crt = URXOP4 / Cratio
+  )
+
+# View the updated dataset
+head(analysis_URXOP4_crt.death.lag$variables %>% select(SEQN, URXOP4_crt))
+
+
+max(analysis_URXOP4_crt.death.lag$variables$URXOP4_crt)
+# analysis_URXOP4_crt.death.lag$variables %>% 
+#   group_by(SDDSRVYR) %>% 
+#   summarize(max_URXOP4_crt = max(URXOP4_crt, na.rm = TRUE))
+
+#create the cycle-specific quartiles
+analysis_URXOP4_crt.death.lag$variables <- analysis_URXOP4_crt.death.lag$variables %>%
+  group_by(SDDSRVYR) %>%
+  mutate(
+    quartile = as.numeric(
+      cut(
+        URXOP4_crt,
+        breaks = quantile(URXOP4_crt, probs = seq(0, 1, 0.25), na.rm = TRUE),
+        include.lowest = TRUE,
+        labels = FALSE
+      )
+    )
+  ) %>%
+  ungroup()
+
+table(analysis_URXOP4_crt.death.lag$variables$quartile)
+
+quartile_check <- analysis_URXOP4_crt.death.lag$variables %>%
+  group_by(SDDSRVYR, quartile) %>%  # Group by cycle & quartile
+  summarise(
+    count = n(), 
+    min_URXOP4_crt = min(URXOP4_crt, na.rm = TRUE),
+    max_URXOP4_crt = max(URXOP4_crt, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(SDDSRVYR) %>%                                # Regroup to calculate percentages
+  mutate(percentage = round(100 * count / sum(count), 2)) %>%  # Calculate % within each cycle
+  arrange(SDDSRVYR,quartile)   # Sort for easier comparison
+
+quartile_check
+```
+
+
+
+
+```{r DETP, all-cause modeling}
+# Q2, Q3, Q4 hazard ratios
+all_cause_model_URXOP4_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+all_cause_model_URXOP4_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DETP, all-cause modeling extract estimates into table}
+all_cause_model_URXOP4_quartile_adj_death_lag_p_trend_numbers=all_cause_model_URXOP4_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP4_quartile_adj_death_lag_p_trend_numbers
+
+all_cause_model_URXOP4_quartile_adj_death_lag_numbers=all_cause_model_URXOP4_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP4_quartile_adj_death_lag_numbers
+
+all_cause_model_URXOP4_quartile_adj_death_lag_final=bind_cols( all_cause_model_URXOP4_quartile_adj_death_lag_numbers, all_cause_model_URXOP4_quartile_adj_death_lag_p_trend_numbers)
+all_cause_model_URXOP4_quartile_adj_death_lag_final
+
+all_cause_model_URXOP4_quartile_adj_death_lag_final_wide=all_cause_model_URXOP4_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP4_quartile_adj_death_lag_final_wide
+```
+
+
+
+```{r DETP, CVD_death modeling}
+# Q2, Q3, Q4 hazard ratios
+CVD_death_model_URXOP4_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+CVD_death_model_URXOP4_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DETP, CVD_death modeling extract estimates into table}
+CVD_death_model_URXOP4_quartile_adj_death_lag_p_trend_numbers=CVD_death_model_URXOP4_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_death_model_URXOP4_quartile_adj_death_lag_p_trend_numbers
+
+CVD_death_model_URXOP4_quartile_adj_death_lag_numbers=CVD_death_model_URXOP4_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="CVD Death",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_death_model_URXOP4_quartile_adj_death_lag_numbers
+
+CVD_death_model_URXOP4_quartile_adj_death_lag_final=bind_cols( CVD_death_model_URXOP4_quartile_adj_death_lag_numbers, CVD_death_model_URXOP4_quartile_adj_death_lag_p_trend_numbers)
+CVD_death_model_URXOP4_quartile_adj_death_lag_final
+
+CVD_death_model_URXOP4_quartile_adj_death_lag_final_wide=CVD_death_model_URXOP4_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_death_model_URXOP4_quartile_adj_death_lag_final_wide
+```
+
+
+
+
+```{r DETP, cancer_death modeling}
+# Q2, Q3, Q4 hazard ratios
+cancer_death_model_URXOP4_quartile_adj_death_lag=svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ as.factor(quartile)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+#p-trend
+cancer_death_model_URXOP4_quartile_adj_pval_death_lag=svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ quartile+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.death.lag
+) |> tbl_regression(exponentiate = TRUE)
+
+
+```
+
+```{r  DETP, cancer_death modeling extract estimates into table}
+cancer_death_model_URXOP4_quartile_adj_death_lag_p_trend_numbers=cancer_death_model_URXOP4_quartile_adj_pval_death_lag$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_death_model_URXOP4_quartile_adj_death_lag_p_trend_numbers
+
+cancer_death_model_URXOP4_quartile_adj_death_lag_numbers=cancer_death_model_URXOP4_quartile_adj_death_lag$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="cancer Death",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_death_model_URXOP4_quartile_adj_death_lag_numbers
+
+cancer_death_model_URXOP4_quartile_adj_death_lag_final=bind_cols( cancer_death_model_URXOP4_quartile_adj_death_lag_numbers, cancer_death_model_URXOP4_quartile_adj_death_lag_p_trend_numbers)
+cancer_death_model_URXOP4_quartile_adj_death_lag_final
+
+cancer_death_model_URXOP4_quartile_adj_death_lag_final_wide=cancer_death_model_URXOP4_quartile_adj_death_lag_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_death_model_URXOP4_quartile_adj_death_lag_final_wide
+```
+
+
+
+```{r combine all results into one table}
+bind_rows=bind_rows(all_cause_model_URXOP1_quartile_adj_death_lag_final_wide, all_cause_model_URXOP3_quartile_adj_death_lag_final_wide, all_cause_model_URXOP4_quartile_adj_death_lag_final_wide, CVD_death_model_URXOP1_quartile_adj_death_lag_final_wide, CVD_death_model_URXOP3_quartile_adj_death_lag_final_wide, CVD_death_model_URXOP4_quartile_adj_death_lag_final_wide, cancer_death_model_URXOP1_quartile_adj_death_lag_final_wide, cancer_death_model_URXOP3_quartile_adj_death_lag_final_wide, cancer_death_model_URXOP4_quartile_adj_death_lag_final_wide)
+
+bind_rows=bind_rows %>% mutate(p.value=round(p.value, 2))
+bind_rows
+write.csv(bind_rows, file="/Users/emilysegal/Library/Mobile Documents/com~apple~CloudDocs/Final Analysis Data/Coauthor edits/Submission to Environmental Insights Journal/Tracking Revisions/Code for Revisions/Death lag_subset_create_quartile.csv")
+```
+
