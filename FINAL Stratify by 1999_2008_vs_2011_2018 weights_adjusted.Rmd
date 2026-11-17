@@ -1034,5 +1034,5 @@ bind_rows=bind_rows %>% mutate(p.value=round(p.value, 2))
 View(bind_rows)
 
 
-write.csv(bind_rows, file="/Users/emilysegal/Library/Mobile Documents/com~apple~CloudDocs/Final Analysis Data/Coauthor edits/Submission to Environmental Insights Journal/Tracking Revisions/Code for Revisions/stratify_1999_2008_vs_2011_2018_recalculated_weights_final.csv")
+
 ```
