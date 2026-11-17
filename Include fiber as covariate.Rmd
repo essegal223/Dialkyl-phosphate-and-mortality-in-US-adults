@@ -1,0 +1,350 @@
+---
+title: "Untitled"
+author: "Emily"
+date: "2026-10-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r DMP, all cause}
+
+
+all_cause_model_URXOP1_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,mortstat) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP1_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,mortstat) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP1_quartile_adj_p_trend_numbers=all_cause_model_URXOP1_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP1_quartile_adj_p_trend_numbers
+
+all_cause_model_URXOP1_quartile_adj_numbers=all_cause_model_URXOP1_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP1_quartile_adj_numbers
+
+all_cause_model_URXOP1_quartile_adj_final=bind_cols( all_cause_model_URXOP1_quartile_adj_numbers, all_cause_model_URXOP1_quartile_adj_p_trend_numbers)
+all_cause_model_URXOP1_quartile_adj_final
+
+all_cause_model_URXOP1_quartile_adj_final_wide=all_cause_model_URXOP1_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP1_quartile_adj_final_wide
+
+
+```
+
+
+```{r DMTP, all cause}
+
+all_cause_model_URXOP3_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,mortstat) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP3_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,mortstat) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP3_quartile_adj_p_trend_numbers=all_cause_model_URXOP3_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP3_quartile_adj_p_trend_numbers
+
+all_cause_model_URXOP3_quartile_adj_numbers=all_cause_model_URXOP3_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP3_quartile_adj_numbers
+
+all_cause_model_URXOP3_quartile_adj_final=bind_cols( all_cause_model_URXOP3_quartile_adj_numbers, all_cause_model_URXOP3_quartile_adj_p_trend_numbers)
+all_cause_model_URXOP3_quartile_adj_final
+
+all_cause_model_URXOP3_quartile_adj_final_wide=all_cause_model_URXOP3_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP3_quartile_adj_final_wide
+
+
+```
+
+
+```{r DETP, all cause}
+
+
+all_cause_model_URXOP4_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,mortstat) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP4_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,mortstat) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP4_quartile_adj_p_trend_numbers=all_cause_model_URXOP4_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP4_quartile_adj_p_trend_numbers
+
+all_cause_model_URXOP4_quartile_adj_numbers=all_cause_model_URXOP4_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP4_quartile_adj_numbers
+
+all_cause_model_URXOP4_quartile_adj_final=bind_cols( all_cause_model_URXOP4_quartile_adj_numbers, all_cause_model_URXOP4_quartile_adj_p_trend_numbers)
+all_cause_model_URXOP4_quartile_adj_final
+
+all_cause_model_URXOP4_quartile_adj_final_wide=all_cause_model_URXOP4_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP4_quartile_adj_final_wide
+
+
+```
+
+
+
+```{r DMP, CVD}
+
+CVD_model_URXOP1_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,CVD_death) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP1_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,CVD_death) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP1_quartile_adj_p_trend_numbers=CVD_model_URXOP1_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_model_URXOP1_quartile_adj_p_trend_numbers
+
+CVD_model_URXOP1_quartile_adj_numbers=CVD_model_URXOP1_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_model_URXOP1_quartile_adj_numbers
+
+CVD_model_URXOP1_quartile_adj_final=bind_cols( CVD_model_URXOP1_quartile_adj_numbers, CVD_model_URXOP1_quartile_adj_p_trend_numbers)
+CVD_model_URXOP1_quartile_adj_final
+
+CVD_model_URXOP1_quartile_adj_final_wide=CVD_model_URXOP1_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_model_URXOP1_quartile_adj_final_wide
+
+
+```
+
+
+```{r DMTP, CVD}
+
+
+CVD_model_URXOP3_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,CVD_death) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP3_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,CVD_death) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP3_quartile_adj_p_trend_numbers=CVD_model_URXOP3_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_model_URXOP3_quartile_adj_p_trend_numbers
+
+CVD_model_URXOP3_quartile_adj_numbers=CVD_model_URXOP3_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_model_URXOP3_quartile_adj_numbers
+
+CVD_model_URXOP3_quartile_adj_final=bind_cols( CVD_model_URXOP3_quartile_adj_numbers, CVD_model_URXOP3_quartile_adj_p_trend_numbers)
+CVD_model_URXOP3_quartile_adj_final
+
+CVD_model_URXOP3_quartile_adj_final_wide=CVD_model_URXOP3_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_model_URXOP3_quartile_adj_final_wide
+
+
+```
+
+
+```{r DETP, CVD}
+
+
+CVD_model_URXOP4_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,CVD_death) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP4_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,CVD_death) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP4_quartile_adj_p_trend_numbers=CVD_model_URXOP4_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_model_URXOP4_quartile_adj_p_trend_numbers
+
+CVD_model_URXOP4_quartile_adj_numbers=CVD_model_URXOP4_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_model_URXOP4_quartile_adj_numbers
+
+CVD_model_URXOP4_quartile_adj_final=bind_cols( CVD_model_URXOP4_quartile_adj_numbers, CVD_model_URXOP4_quartile_adj_p_trend_numbers)
+CVD_model_URXOP4_quartile_adj_final
+
+CVD_model_URXOP4_quartile_adj_final_wide=CVD_model_URXOP4_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_model_URXOP4_quartile_adj_final_wide
+
+
+```
+
+
+
+```{r DMP, cancer}
+
+
+cancer_model_URXOP1_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,cancer_death) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP1_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,cancer_death) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP1_quartile_adj_p_trend_numbers=cancer_model_URXOP1_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_model_URXOP1_quartile_adj_p_trend_numbers
+
+cancer_model_URXOP1_quartile_adj_numbers=cancer_model_URXOP1_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_model_URXOP1_quartile_adj_numbers
+
+cancer_model_URXOP1_quartile_adj_final=bind_cols( cancer_model_URXOP1_quartile_adj_numbers, cancer_model_URXOP1_quartile_adj_p_trend_numbers)
+cancer_model_URXOP1_quartile_adj_final
+
+cancer_model_URXOP1_quartile_adj_final_wide=cancer_model_URXOP1_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_model_URXOP1_quartile_adj_final_wide
+
+
+```
+
+
+```{r DMTP, cancer}
+
+
+cancer_model_URXOP3_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,cancer_death) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP3_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,cancer_death) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP3_quartile_adj_p_trend_numbers=cancer_model_URXOP3_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_model_URXOP3_quartile_adj_p_trend_numbers
+
+cancer_model_URXOP3_quartile_adj_numbers=cancer_model_URXOP3_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_model_URXOP3_quartile_adj_numbers
+
+cancer_model_URXOP3_quartile_adj_final=bind_cols( cancer_model_URXOP3_quartile_adj_numbers, cancer_model_URXOP3_quartile_adj_p_trend_numbers)
+cancer_model_URXOP3_quartile_adj_final
+
+cancer_model_URXOP3_quartile_adj_final_wide=cancer_model_URXOP3_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_model_URXOP3_quartile_adj_final_wide
+
+
+```
+
+
+```{r DETP, cancer}
+
+cancer_model_URXOP4_quartile_adj <- svycoxph(
+  formula = Surv(permth_exm,cancer_death) ~ as.factor(quartile)+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP4_quartile_adj_p_trend <- svycoxph(
+  formula = Surv(permth_exm,cancer_death) ~ quartile+ fiber+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP4_quartile_adj_p_trend_numbers=cancer_model_URXOP4_quartile_adj_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_model_URXOP4_quartile_adj_p_trend_numbers
+
+cancer_model_URXOP4_quartile_adj_numbers=cancer_model_URXOP4_quartile_adj$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_model_URXOP4_quartile_adj_numbers
+
+cancer_model_URXOP4_quartile_adj_final=bind_cols( cancer_model_URXOP4_quartile_adj_numbers, cancer_model_URXOP4_quartile_adj_p_trend_numbers)
+cancer_model_URXOP4_quartile_adj_final
+
+cancer_model_URXOP4_quartile_adj_final_wide=cancer_model_URXOP4_quartile_adj_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_model_URXOP4_quartile_adj_final_wide
+
+
+```
+
+```{r}
+bind_rows=bind_rows(all_cause_model_URXOP1_quartile_adj_final_wide, all_cause_model_URXOP3_quartile_adj_final_wide, all_cause_model_URXOP4_quartile_adj_final_wide, CVD_model_URXOP1_quartile_adj_final_wide, CVD_model_URXOP3_quartile_adj_final_wide, CVD_model_URXOP4_quartile_adj_final_wide, cancer_model_URXOP1_quartile_adj_final_wide, cancer_model_URXOP3_quartile_adj_final_wide, cancer_model_URXOP4_quartile_adj_final_wide)
+
+bind_rows=bind_rows %>% mutate(p.value=round(p.value, 2))
+bind_rows
+write.csv(bind_rows, file="/Users/emilysegal/Library/Mobile Documents/com~apple~CloudDocs/Final Analysis Data/Coauthor edits/Submission to Environmental Insights Journal/Tracking Revisions/Code for Revisions/include fiber as covariate.csv")
+```

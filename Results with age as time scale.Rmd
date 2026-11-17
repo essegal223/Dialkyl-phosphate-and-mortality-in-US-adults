@@ -1,0 +1,371 @@
+---
+title: "Untitled"
+author: "Emily"
+date: "2026-10-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+#install.packages("gtsummary")
+library(gtsummary)
+```
+
+```{r DMP, all cause}
+analysis_URXOP1_crt.imputed.cont$variables=analysis_URXOP1_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+all_cause_model_URXOP1_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, mortstat) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP1_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, mortstat) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers=all_cause_model_URXOP1_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers
+
+all_cause_model_URXOP1_quartile_adj_age_time_scale_numbers=all_cause_model_URXOP1_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP1_quartile_adj_age_time_scale_numbers
+
+all_cause_model_URXOP1_quartile_adj_age_time_scale_final=bind_cols( all_cause_model_URXOP1_quartile_adj_age_time_scale_numbers, all_cause_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers)
+all_cause_model_URXOP1_quartile_adj_age_time_scale_final
+
+all_cause_model_URXOP1_quartile_adj_age_time_scale_final_wide=all_cause_model_URXOP1_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP1_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+
+```{r DMTP, all cause}
+analysis_URXOP3_crt.imputed.cont$variables=analysis_URXOP3_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+all_cause_model_URXOP3_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, mortstat) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP3_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, mortstat) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers=all_cause_model_URXOP3_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers
+
+all_cause_model_URXOP3_quartile_adj_age_time_scale_numbers=all_cause_model_URXOP3_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP3_quartile_adj_age_time_scale_numbers
+
+all_cause_model_URXOP3_quartile_adj_age_time_scale_final=bind_cols( all_cause_model_URXOP3_quartile_adj_age_time_scale_numbers, all_cause_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers)
+all_cause_model_URXOP3_quartile_adj_age_time_scale_final
+
+all_cause_model_URXOP3_quartile_adj_age_time_scale_final_wide=all_cause_model_URXOP3_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP3_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+
+```{r DETP, all cause}
+analysis_URXOP4_crt.imputed.cont$variables=analysis_URXOP4_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+all_cause_model_URXOP4_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, mortstat) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP4_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, mortstat) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+all_cause_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers=all_cause_model_URXOP4_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+all_cause_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers
+
+all_cause_model_URXOP4_quartile_adj_age_time_scale_numbers=all_cause_model_URXOP4_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+all_cause_model_URXOP4_quartile_adj_age_time_scale_numbers
+
+all_cause_model_URXOP4_quartile_adj_age_time_scale_final=bind_cols( all_cause_model_URXOP4_quartile_adj_age_time_scale_numbers, all_cause_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers)
+all_cause_model_URXOP4_quartile_adj_age_time_scale_final
+
+all_cause_model_URXOP4_quartile_adj_age_time_scale_final_wide=all_cause_model_URXOP4_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+all_cause_model_URXOP4_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+
+
+```{r DMP, CVD}
+analysis_URXOP1_crt.imputed.cont$variables=analysis_URXOP1_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+CVD_model_URXOP1_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, CVD_death) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP1_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, CVD_death) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers=CVD_model_URXOP1_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers
+
+CVD_model_URXOP1_quartile_adj_age_time_scale_numbers=CVD_model_URXOP1_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_model_URXOP1_quartile_adj_age_time_scale_numbers
+
+CVD_model_URXOP1_quartile_adj_age_time_scale_final=bind_cols( CVD_model_URXOP1_quartile_adj_age_time_scale_numbers, CVD_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers)
+CVD_model_URXOP1_quartile_adj_age_time_scale_final
+
+CVD_model_URXOP1_quartile_adj_age_time_scale_final_wide=CVD_model_URXOP1_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_model_URXOP1_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+
+```{r DMTP, CVD}
+analysis_URXOP3_crt.imputed.cont$variables=analysis_URXOP3_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+CVD_model_URXOP3_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, CVD_death) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP3_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, CVD_death) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers=CVD_model_URXOP3_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers
+
+CVD_model_URXOP3_quartile_adj_age_time_scale_numbers=CVD_model_URXOP3_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_model_URXOP3_quartile_adj_age_time_scale_numbers
+
+CVD_model_URXOP3_quartile_adj_age_time_scale_final=bind_cols( CVD_model_URXOP3_quartile_adj_age_time_scale_numbers, CVD_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers)
+CVD_model_URXOP3_quartile_adj_age_time_scale_final
+
+CVD_model_URXOP3_quartile_adj_age_time_scale_final_wide=CVD_model_URXOP3_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_model_URXOP3_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+
+```{r DETP, CVD}
+analysis_URXOP4_crt.imputed.cont$variables=analysis_URXOP4_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+CVD_model_URXOP4_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, CVD_death) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP4_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, CVD_death) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+CVD_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers=CVD_model_URXOP4_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+CVD_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers
+
+CVD_model_URXOP4_quartile_adj_age_time_scale_numbers=CVD_model_URXOP4_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+CVD_model_URXOP4_quartile_adj_age_time_scale_numbers
+
+CVD_model_URXOP4_quartile_adj_age_time_scale_final=bind_cols( CVD_model_URXOP4_quartile_adj_age_time_scale_numbers, CVD_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers)
+CVD_model_URXOP4_quartile_adj_age_time_scale_final
+
+CVD_model_URXOP4_quartile_adj_age_time_scale_final_wide=CVD_model_URXOP4_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+CVD_model_URXOP4_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+
+
+```{r DMP, cancer}
+analysis_URXOP1_crt.imputed.cont$variables=analysis_URXOP1_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+cancer_model_URXOP1_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, cancer_death) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP1_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, cancer_death) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers=cancer_model_URXOP1_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers
+
+cancer_model_URXOP1_quartile_adj_age_time_scale_numbers=cancer_model_URXOP1_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_model_URXOP1_quartile_adj_age_time_scale_numbers
+
+cancer_model_URXOP1_quartile_adj_age_time_scale_final=bind_cols( cancer_model_URXOP1_quartile_adj_age_time_scale_numbers, cancer_model_URXOP1_quartile_adj_age_time_scale_p_trend_numbers)
+cancer_model_URXOP1_quartile_adj_age_time_scale_final
+
+cancer_model_URXOP1_quartile_adj_age_time_scale_final_wide=cancer_model_URXOP1_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_model_URXOP1_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+
+```{r DMTP, cancer}
+analysis_URXOP3_crt.imputed.cont$variables=analysis_URXOP3_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+cancer_model_URXOP3_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, cancer_death) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP3_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, cancer_death) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers=cancer_model_URXOP3_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers
+
+cancer_model_URXOP3_quartile_adj_age_time_scale_numbers=cancer_model_URXOP3_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_model_URXOP3_quartile_adj_age_time_scale_numbers
+
+cancer_model_URXOP3_quartile_adj_age_time_scale_final=bind_cols( cancer_model_URXOP3_quartile_adj_age_time_scale_numbers, cancer_model_URXOP3_quartile_adj_age_time_scale_p_trend_numbers)
+cancer_model_URXOP3_quartile_adj_age_time_scale_final
+
+cancer_model_URXOP3_quartile_adj_age_time_scale_final_wide=cancer_model_URXOP3_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_model_URXOP3_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+
+```{r DETP, cancer}
+analysis_URXOP4_crt.imputed.cont$variables=analysis_URXOP4_crt.imputed.cont$variables %>% 
+  mutate(Age_stop=RIDAGEYR+(permth_int/12))
+
+cancer_model_URXOP4_quartile_adj_age_time_scale <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, cancer_death) ~ as.factor(quartile)+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP4_quartile_adj_age_time_scale_p_trend <- svycoxph(
+  formula = Surv(RIDAGEYR, Age_stop, cancer_death) ~ quartile+RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont) %>% tbl_regression(exponentiate = TRUE) 
+
+cancer_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers=cancer_model_URXOP4_quartile_adj_age_time_scale_p_trend$table_body %>% filter(term=="quartile") %>% select(p.value)
+cancer_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers
+
+cancer_model_URXOP4_quartile_adj_age_time_scale_numbers=cancer_model_URXOP4_quartile_adj_age_time_scale$table_body %>% filter(term=="as.factor(quartile)2"|term=="as.factor(quartile)3"|term=="as.factor(quartile)4") %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI)
+
+cancer_model_URXOP4_quartile_adj_age_time_scale_numbers
+
+cancer_model_URXOP4_quartile_adj_age_time_scale_final=bind_cols( cancer_model_URXOP4_quartile_adj_age_time_scale_numbers, cancer_model_URXOP4_quartile_adj_age_time_scale_p_trend_numbers)
+cancer_model_URXOP4_quartile_adj_age_time_scale_final
+
+cancer_model_URXOP4_quartile_adj_age_time_scale_final_wide=cancer_model_URXOP4_quartile_adj_age_time_scale_final %>% pivot_wider(names_from=term, values_from=HR_CI) %>% select(Outcome, Metabolite, `as.factor(quartile)2`,`as.factor(quartile)3`,`as.factor(quartile)4`, p.value)
+cancer_model_URXOP4_quartile_adj_age_time_scale_final_wide
+
+
+```
+
+```{r}
+bind_rows=bind_rows(all_cause_model_URXOP1_quartile_adj_age_time_scale_final_wide, all_cause_model_URXOP3_quartile_adj_age_time_scale_final_wide, all_cause_model_URXOP4_quartile_adj_age_time_scale_final_wide, CVD_model_URXOP1_quartile_adj_age_time_scale_final_wide, CVD_model_URXOP3_quartile_adj_age_time_scale_final_wide, CVD_model_URXOP4_quartile_adj_age_time_scale_final_wide, cancer_model_URXOP1_quartile_adj_age_time_scale_final_wide, cancer_model_URXOP3_quartile_adj_age_time_scale_final_wide, cancer_model_URXOP4_quartile_adj_age_time_scale_final_wide)
+
+bind_rows=bind_rows %>% mutate(p.value=round(p.value, 2))
+bind_rows
+write.csv(bind_rows, file="/Users/emilysegal/Library/Mobile Documents/com~apple~CloudDocs/Final Analysis Data/Coauthor edits/Submission to Environmental Insights Journal/Tracking Revisions/Code for Revisions/Age as time scale.csv")
+```
+
+
+
+

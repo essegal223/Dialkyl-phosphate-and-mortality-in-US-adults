@@ -1,0 +1,282 @@
+---
+title: "Log transformed DAPs"
+author: "Emily"
+date: "2026-10-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r DMP, all-cause}
+all_cause_model_log_URXOP1_adj <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ log(URXOP1_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP1_quartile_numbers=all_cause_model_log_URXOP1_adj$table_body %>% filter(term=="log(URXOP1_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+all_cause_model_URXOP1_quartile_numbers
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r DMTP, all-cause}
+all_cause_model_log_URXOP3_adj <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ log(URXOP3_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP3_quartile_numbers=all_cause_model_log_URXOP3_adj$table_body %>% filter(term=="log(URXOP3_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+all_cause_model_URXOP3_quartile_numbers
+
+
+```
+
+
+
+
+
+
+
+```{r DETP, all-cause}
+all_cause_model_log_URXOP4_adj <- svycoxph(
+  formula = Surv(permth_exm, mortstat) ~ log(URXOP4_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+all_cause_model_URXOP4_quartile_numbers=all_cause_model_log_URXOP4_adj$table_body %>% filter(term=="log(URXOP4_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="All cause",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+all_cause_model_URXOP4_quartile_numbers
+
+
+```
+
+
+
+
+```{r DMP, CVD}
+CVD_model_log_URXOP1_adj <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ log(URXOP1_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_model_URXOP1_quartile_numbers=CVD_model_log_URXOP1_adj$table_body %>% filter(term=="log(URXOP1_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+CVD_model_URXOP1_quartile_numbers
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r DMTP, CVD}
+CVD_model_log_URXOP3_adj <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ log(URXOP3_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_model_URXOP3_quartile_numbers=CVD_model_log_URXOP3_adj$table_body %>% filter(term=="log(URXOP3_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+CVD_model_URXOP3_quartile_numbers
+
+
+```
+
+
+
+
+
+
+
+```{r DETP, CVD}
+CVD_model_log_URXOP4_adj <- svycoxph(
+  formula = Surv(permth_exm, CVD_death) ~ log(URXOP4_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+CVD_model_URXOP4_quartile_numbers=CVD_model_log_URXOP4_adj$table_body %>% filter(term=="log(URXOP4_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="CVD",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+CVD_model_URXOP4_quartile_numbers
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r DMP, cancer}
+cancer_model_log_URXOP1_adj <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ log(URXOP1_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP1_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_model_URXOP1_quartile_numbers=cancer_model_log_URXOP1_adj$table_body %>% filter(term=="log(URXOP1_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DMP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+cancer_model_URXOP1_quartile_numbers
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r DMTP, cancer}
+cancer_model_log_URXOP3_adj <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ log(URXOP3_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP3_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_model_URXOP3_quartile_numbers=cancer_model_log_URXOP3_adj$table_body %>% filter(term=="log(URXOP3_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DMTP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+cancer_model_URXOP3_quartile_numbers
+
+
+```
+
+
+
+
+
+
+
+```{r DETP, cancer}
+cancer_model_log_URXOP4_adj <- svycoxph(
+  formula = Surv(permth_exm, cancer_death) ~ log(URXOP4_crt)+ RIDAGEYR+sex+URXUCR + race+edu+pir+mvp_label+bmicat+smk_label+SDDSRVYR+alcg_label,  
+  design = analysis_URXOP4_crt.imputed.cont
+)%>% tbl_regression(exponentiate = TRUE) 
+
+
+cancer_model_URXOP4_quartile_numbers=cancer_model_log_URXOP4_adj$table_body %>% filter(term=="log(URXOP4_crt)") %>% 
+  select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(
+    Metabolite="DETP",
+    Outcome="cancer",
+    HR=round(estimate, digits=2),
+         CI_low=round(conf.low, digits=2),
+         CI_high=round(conf.high, digits=2),
+    HR_CI=paste0(HR, " (", CI_low, ", ", CI_high, ")")) %>% 
+  select(Metabolite, Outcome, term, HR_CI, p.value)
+
+cancer_model_URXOP4_quartile_numbers
+
+
+```
+
+
+```{r}
+bind_rows=bind_rows(all_cause_model_URXOP1_quartile_numbers, all_cause_model_URXOP3_quartile_numbers, all_cause_model_URXOP4_quartile_numbers, CVD_model_URXOP1_quartile_numbers, CVD_model_URXOP3_quartile_numbers, CVD_model_URXOP4_quartile_numbers, cancer_model_URXOP4_quartile_numbers, cancer_model_URXOP3_quartile_numbers, cancer_model_URXOP4_quartile_numbers)
+
+bind_rows=bind_rows %>% mutate(p.value=round(p.value, 2))
+bind_rows
+
+write.csv(bind_rows, file="/Users/emilysegal/Library/Mobile Documents/com~apple~CloudDocs/Final Analysis Data/Coauthor edits/Submission to Environmental Insights Journal/Tracking Revisions/Code for Revisions/log DAP continuous.csv")
+```
+
+
