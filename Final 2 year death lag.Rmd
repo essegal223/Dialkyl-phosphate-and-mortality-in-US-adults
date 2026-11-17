@@ -445,7 +445,7 @@ bind_rows=bind_rows(all_cause_model_URXOP1_quartile_adj_death_lag_final_wide, al
 
 bind_rows=bind_rows %>% mutate(p.value=round(p.value, 2))
 bind_rows
-write.csv(bind_rows, file="/Users/emilysegal/Library/Mobile Documents/com~apple~CloudDocs/Final Analysis Data/Coauthor edits/Submission to Environmental Insights Journal/Tracking Revisions/Code for Revisions/Death lag.csv")
+
 ```
 
 
