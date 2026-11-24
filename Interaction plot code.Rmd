@@ -1,0 +1,74 @@
+---
+title: "Interaction Plot"
+author: "Emily"
+date: "2026-11-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+Interaction_Table_long <- read_csv("Coauthor edits/Submission to Environmental Insights Journal/Tracking revisions/Code for revisions/Interaction Table_long.csv")
+
+```
+
+
+```{r}
+Interaction_Table_long=Interaction_Table_long |> filter(Stratification!="Missing") 
+
+
+Interaction_Table_long$Metabolite=factor(Interaction_Table_long$Metabolite, levels=c( "DMP", "DMTP", "DETP"))
+
+Interaction_Table_long$Outcome=factor(Interaction_Table_long$Outcome, levels=c( "All-cause", "CVD", "Cancer"))
+
+
+Interaction_Table_long$Stratification=factor(Interaction_Table_long$Stratification, levels=c( "Birth Cohort 1951-2000", "Birth Cohort 1910-1950", "current smoker", "past smoker", "non smoker"))
+
+
+Interaction_Table_long_plot=Interaction_Table_long |> ggplot(aes(x = HR, y = Stratification, color = as.factor(Quartile))) +
+  geom_point(size = 5.5,
+             position = position_dodge(width = 0.8)) +
+  geom_errorbar(
+    aes(xmin = CI_Low, xmax = CI_High),
+    width = 0.5,
+    linewidth=2,
+    position = position_dodge(width = 0.8)
+  ) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  geom_hline(yintercept = 2.5, color = "grey50", linewidth = 0.8)+
+  facet_grid(Outcome ~ Metabolite) +
+  scale_x_log10() +
+  labs(
+    x = "Hazard Ratio (95% CI)",
+    y = NULL,
+    color = "Quartile"
+  ) +
+  theme_minimal()+
+  theme(
+  axis.text.x = element_text(size = 30),
+  axis.text.y = element_text(size = 30),
+  axis.title.x = element_text(size = 30),
+  strip.text = element_text(size = 30),
+  legend.text = element_text(size = 30),
+  legend.title = element_text(size = 30)
+)
+
+Interaction_Table_long_plot
+```
+
+
+```{r}
+ggsave("Coauthor edits/Submission to Environmental Insights Journal/Tracking revisions/Code for revisions/Interaction Table_long.tiff",
+       plot=Interaction_Table_long_plot,
+       width=20,
+       height=25,
+       units="in",
+       dpi=600,
+  compression = "lzw"
+       
+)
+```
+
