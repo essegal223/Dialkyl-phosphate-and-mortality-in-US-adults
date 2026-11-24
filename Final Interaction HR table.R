@@ -109,7 +109,7 @@ View(final_long_all_metabolites)
            
     
   
-write.csv(final_long_all_metabolites, "/Users/emilysegal/Library/Mobile Documents/com~apple~CloudDocs/Final Analysis Data/Coauthor edits/Submission to Environmental Insights Journal/Tracking revisions/Code for revisions/Interaction Table_long.csv")
+write.csv(final_long_all_metabolites, "Coauthor edits/Submission to Environmental Insights Journal/Tracking revisions/Code for revisions/Interaction Table_long.csv")
 
 #convert into wide format
 # Define custom model order
